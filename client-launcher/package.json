@@ -1,0 +1,8 @@
+{
+  "name": "liana-mcp-local",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {"liana-mcp-local": "server.mjs"},
+  "files": ["server.mjs"]
+}

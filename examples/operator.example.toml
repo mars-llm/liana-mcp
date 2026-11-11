@@ -1,0 +1,22 @@
+# Copy outside tracked files, use mode 0600 and replace every placeholder.
+# Use a new absolute state directory, owned by you, mode 0700, without symlinks.
+# Keep its path short enough for the full Unix socket path (under 104 bytes).
+state_directory = "/absolute/private/lmcp"
+enable_regtest_mutations = false
+# Once mutations are enabled, approve each new action from the local CLI.
+require_operator_approval = true
+# Locale for the optional Liana GUI.
+language = "en"
+
+[core]
+path = "/absolute/path/to/verified/bitcoind"
+sha256 = "REPLACE_WITH_VERIFIED_SHA256"
+
+[lianad]
+path = "/absolute/path/to/verified/lianad"
+sha256 = "REPLACE_WITH_VERIFIED_SHA256"
+
+# Optional already installed GUI executable; no downloading or app replacement occurs.
+# [gui]
+# path = "/absolute/path/to/Liana.app/Contents/MacOS/Liana"
+# sha256 = "REPLACE_WITH_VERIFIED_SHA256"
