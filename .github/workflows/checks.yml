@@ -40,7 +40,7 @@ jobs:
             --read-only --cap-drop ALL --security-opt no-new-privileges \
             --tmpfs /tmp:rw,noexec,nosuid,nodev --volume /data \
             --entrypoint /bin/sleep liana-mcp:check infinity
-          docker exec "$container" bitcoind --version | grep -F 'v32.1.0'
-          docker exec "$container" lianad --version | grep -F '16.0'
+          docker exec "$container" bitcoind -datadir=/tmp --version 2>&1 | grep -F 'v32.1.0'
+          docker exec "$container" lianad --version 2>&1 | grep -Fx '16.0'
           docker exec -i "$container" /opt/venv/bin/python - < tests/container_smoke.py
           docker exec "$container" /usr/local/bin/liana-mcp-regtest --stop

@@ -25,8 +25,9 @@ https://github.com/mars-llm/liana-mcp and my existing local agent.
 
 2. For a native install, find Python 3.12+, uv, lianad 16.0 and bitcoind
    32.1. Reuse a verified 32.1 executable, or verify the official
-   archive and extract bitcoind. Liana 16.0's desktop setup manages
-   Core 31.1. Keep my existing node and its data separate.
+   archive and extract bitcoind. When checking bitcoind --version,
+   pass -datadir=<fresh temporary directory>. Liana 16.0's desktop
+   setup manages Core 31.1. Keep my existing node and its data separate.
    Run uv sync --locked. Outside Git, make an operator.toml (0600)
    from examples/operator.example.toml. Use a fresh private state
    directory (0700, at most 40 bytes in its absolute path), resolved
