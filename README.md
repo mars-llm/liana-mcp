@@ -4,6 +4,10 @@
 
 Liana MCP lets a local AI agent help you plan and test a Bitcoin wallet with [Liana](https://lianawallet.com/) and Bitcoin Core. Choose a spending threshold and a recovery delay, then try deposits, mine blocks and test either spending path with real regtest transactions. The server uses disposable keys and an isolated chain. This is an independent project for testing and education. Use it with test coins only.
 
+In this regtest demo, Hermes sets up a 2-of-3 wallet with a four-block recovery delay. After separate approvals for setup and deposit, Liana shows the confirmed deposit of 25,000 test sats.
+
+![Hermes calls Liana MCP and the English Liana wallet shows a confirmed regtest deposit](assets/liana-mcp-hermes-regtest.gif)
+
 ## Install locally
 
 For a native install on macOS or Linux, use [Python 3.12+](https://www.python.org/downloads/), [uv](https://github.com/astral-sh/uv/releases/tag/0.13.7), `lianad` from the [Liana 16.0 release](https://github.com/wizardsardine/liana/releases/tag/v16.0) and `bitcoind` from [Bitcoin Core 32.1](https://bitcoincore.org/bin/bitcoin-core-32.1/). The Liana desktop app is optional. Connect a local agent that supports [MCP 2026-07-28 over stdio](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio).
