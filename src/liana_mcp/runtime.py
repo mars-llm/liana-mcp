@@ -22,6 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .config import Settings, private_directory, private_file
 from .errors import SafetyError
 from .policy import WORKSHOP_POLICY, WalletPolicy
+from .release_docs import LIANA_RELEASE
 from .rpc import RPCError, core_call, liana_call
 
 
@@ -142,7 +143,7 @@ class Runtime:
         wallet = self.liana_rpc(run, "getinfo")
         if wallet.get("network") != "regtest":
             raise SafetyError("The wallet is not on regtest.")
-        if wallet.get("version") != "16.0":
+        if wallet.get("version") != LIANA_RELEASE:
             raise SafetyError("This Liana version is outside the current compatibility contract.")
         flow = run / (
             "private/wallet-state.json" if record.policy else "private/presentation-flow.json"

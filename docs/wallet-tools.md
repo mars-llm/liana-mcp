@@ -7,6 +7,10 @@ Run the server using the [README setup](../README.md#install-locally). Mutation 
 | `regtest_wallet_status` | Inspect the active policy, revision, chain height, spendable outputs and latest action’s transaction receipt |
 | `setup_regtest_wallet` | Generate and start a wallet with 2–8 synthetic signers, a spending threshold, and a single-signature recovery path after 1–144 blocks per output |
 | `regtest_wallet_action` | Deposit test sats, produce blocks, or spend one confirmed test coin |
+| `liana_doc_search` | Find cited excerpts from the packaged Liana 16.0 documentation |
+| `liana_doc_read` | Read a specific line range from a release document |
+
+The documentation tools work before you start a wallet and require no connection. Try a query such as `recovery timelock`. Use the returned source link to check the original lines.
 
 Signer numbers start at 1. The recovery signer uses a separate derivation from their primary key. The primary path remains available after the delay. The server owns all test keys, both destinations and the local chain.
 

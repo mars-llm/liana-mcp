@@ -16,6 +16,8 @@ async def test_sdk_protocol_and_default_tools(settings):
             "liana_demo_status",
             "verify_liana_demo",
             "regtest_wallet_status",
+            "liana_doc_search",
+            "liana_doc_read",
         ]
         for tool in tools.tools:
             assert tool.annotations.read_only_hint is True
@@ -31,11 +33,31 @@ async def test_sdk_protocol_and_default_tools(settings):
 
 
 @pytest.mark.anyio
+async def test_release_documentation_is_available_before_setup(settings):
+    runtime = Runtime(settings)
+    async with Client(create_server(runtime), mode="2026-07-28") as client:
+        result = await client.call_tool("liana_doc_search", {"query": "recovery timelock"})
+        assert not result.is_error
+        assert result.structured_content["release"] == "16.0"
+        match = result.structured_content["matches"][0]
+        assert "github.com/wizardsardine/liana/blob/" in match["source"]
+        readback = await client.call_tool(
+            "liana_doc_read",
+            {"document": match["document"], "start_line": match["start_line"], "line_count": 12},
+        )
+        assert not readback.is_error
+        assert readback.structured_content == match
+        with pytest.raises(MCPError):
+            await client.call_tool("liana_doc_read", {"document": "../../operator"})
+    assert not runtime.state_file.exists()
+
+
+@pytest.mark.anyio
 async def test_mutation_advertisement_requires_operator_setting(settings):
     settings.enable_regtest_mutations = True
     async with Client(create_server(Runtime(settings))) as client:
         tools = (await client.list_tools()).tools
-        assert len(tools) == 5
+        assert len(tools) == 7
         assert tools[-1].name == "next_liana_demo_step"
         assert tools[-1].annotations.destructive_hint is True
         assert tools[-1].annotations.idempotent_hint is True

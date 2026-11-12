@@ -14,7 +14,7 @@ mcp_servers:
     protocol: stateless
     trust: untrusted
     tools:
-      include: [regtest_wallet_status, setup_regtest_wallet, regtest_wallet_action]
+      include: [regtest_wallet_status, setup_regtest_wallet, regtest_wallet_action, liana_doc_search, liana_doc_read]
       prompts: false
       resources: false
     sampling:

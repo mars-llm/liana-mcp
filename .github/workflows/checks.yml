@@ -20,3 +20,27 @@ jobs:
       - run: uv run --frozen --offline ruff check .
       - run: uv run --frozen --offline ruff format --check .
       - run: uv run --frozen --offline pytest -m 'not integration'
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: docker build --platform linux/amd64 --tag liana-mcp:check .
+      - name: Verify the isolated container over MCP stdio
+        run: |
+          set -eu
+          container=liana-mcp-check
+          cleanup() {
+            docker stop "$container" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker run --rm -d --name "$container" --init --network none \
+            --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev --volume /data \
+            --entrypoint /bin/sleep liana-mcp:check infinity
+          docker exec "$container" bitcoind --version | grep -F 'v32.1.0'
+          docker exec "$container" lianad --version | grep -F '16.0'
+          docker exec -i "$container" /opt/venv/bin/python - < tests/container_smoke.py
+          docker exec "$container" /usr/local/bin/liana-mcp-regtest --stop

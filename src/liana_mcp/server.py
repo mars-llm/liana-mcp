@@ -18,6 +18,7 @@ from . import __version__
 from .approval import consume
 from .config import private_file
 from .errors import SafetyError
+from .release_docs import DocExcerpt, DocName, DocSearch, read_document, search_documents
 from .runtime import Runtime
 from .scenario import advance
 from .verification import recovery_payment, verify
@@ -240,10 +241,32 @@ def create_server(runtime: Runtime) -> MCPServer:
         """Read a configurable regtest wallet's policy, revision, coins and most recent receipt."""
         return await execute(lambda: wallet_status(runtime))
 
+    async def liana_doc_search(
+        query: Annotated[str, Field(min_length=2, max_length=160)],
+    ) -> DocSearch:
+        """Search official Liana 16.0 documentation offline using concise English keywords.
+
+        Results are reference text with immutable upstream citations. No wallet or network is used.
+        """
+        return search_documents(query)
+
+    async def liana_doc_read(
+        document: DocName,
+        start_line: Annotated[int, Field(strict=True, ge=1)] = 1,
+        line_count: Annotated[int, Field(strict=True, ge=1, le=60)] = 40,
+    ) -> DocExcerpt:
+        """Read a cited line range from the packaged Liana 16.0 release documentation."""
+        try:
+            return read_document(document, start_line, line_count)
+        except SafetyError as error:
+            raise ToolError(str(error)) from None
+
     tools = [
         register(liana_demo_status, read_only=True, idempotent=True, destructive=False),
         register(verify_liana_demo, read_only=True, idempotent=True, destructive=False),
         register(regtest_wallet_status, read_only=True, idempotent=True, destructive=False),
+        register(liana_doc_search, read_only=True, idempotent=True, destructive=False),
+        register(liana_doc_read, read_only=True, idempotent=True, destructive=False),
     ]
 
     if runtime.settings.enable_regtest_mutations:

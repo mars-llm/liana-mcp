@@ -7,11 +7,13 @@
 | MCP | `2026-07-28` only; older versions rejected |
 | Python SDK | `mcp==2.3.0` |
 | Python | 3.12 or newer |
-| Native backend | Bitcoin Core 31.1, isolated regtest |
+| Native and container backend | Bitcoin Core 32.1, isolated regtest |
 | Wallet version gate | Liana `16.0` final only |
 | Wallet policies | P2WSH, 2–8 primary keys, a user-selected threshold, and one recovery signer after 1–144 blocks |
 
-The native integration suite uses `lianad` 16.0 final and Bitcoin Core 31.1, and covers both the workshop workflow and independent actions on a configurable wallet. Windows is outside the Unix-socket implementation.
+The native integration suite covers the workshop workflow and independent actions on a configurable wallet. The [Docker image](container.md) packages both daemons for Linux x86-64. The GUI is available in the native setup. Windows is outside the native Unix-socket implementation.
+
+The read-only documentation tools include usage, recovery, signing devices, labels, regtest examples and the API reference from [Liana 16.0](https://github.com/wizardsardine/liana/tree/ad203b7fbefae6f2b5b36f25db41ff0e0e2acd13/doc).
 
 ## If discovery fails in your client
 
