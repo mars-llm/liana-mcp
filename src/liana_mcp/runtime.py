@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .config import Settings, private_directory, private_file
 from .errors import SafetyError
+from .policy import WORKSHOP_POLICY, WalletPolicy
 from .rpc import RPCError, core_call, liana_call
 
 
@@ -34,6 +35,7 @@ class Run(BaseModel):
     stage: Literal["starting", "ready", "failed", "stopped"] = "starting"
     gui_language: str
     seconds: float = 0.0
+    policy: WalletPolicy | None = None
 
 
 def write_json(path: Path, value: object) -> None:
@@ -142,7 +144,9 @@ class Runtime:
             raise SafetyError("The wallet is not on regtest.")
         if wallet.get("version") != "16.0":
             raise SafetyError("This Liana version is outside the current compatibility contract.")
-        flow = run / "private/presentation-flow.json"
+        flow = run / (
+            "private/wallet-state.json" if record.policy else "private/presentation-flow.json"
+        )
         expected_height = json.loads(private_file(flow))["height"] if flow.exists() else 1
         if check_height and info.get("blocks") != expected_height:
             raise SafetyError("The regtest changed outside this workflow. Inspect it locally.")
@@ -176,6 +180,7 @@ class Runtime:
                 "mutations_enabled": self.settings.enable_regtest_mutations,
             }
         record, run, wallet = self.guard()
+        policy = record.policy or WORKSHOP_POLICY
         flow_file = run / "private/presentation-flow.json"
         step = json.loads(private_file(flow_file)).get("completed", 0) if flow_file.exists() else 0
         return {
@@ -184,9 +189,9 @@ class Runtime:
             "experimental": True,
             "run_id": record.run,
             "completed_step": step,
-            "primary_signatures": 3,
-            "primary_keys": 5,
-            "recovery_blocks": 6,
+            "primary_signatures": policy.primary_signatures,
+            "primary_keys": policy.primary_keys,
+            "recovery_blocks": policy.recovery_blocks,
             "peer_connections": 0,
             "liana_version": wallet.get("version", "unknown"),
             "mutations_enabled": self.settings.enable_regtest_mutations,
@@ -209,10 +214,12 @@ class Runtime:
             )
         self.children.append(child)
 
-    def setup(self) -> dict:
+    def setup(self, policy: WalletPolicy | None = None) -> dict:
         if self.state_file.exists():
             record = self.record()
             if record.stage == "ready":
+                if record.policy != policy:
+                    raise SafetyError("Stop this wallet before setting up a different policy.")
                 return self.public_status()
             if record.stage in ("starting", "failed"):
                 raise SafetyError(
@@ -227,7 +234,7 @@ class Runtime:
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
             port = probe.getsockname()[1]
-        descriptor = self.wallet_files(run, port)
+        descriptor = self.wallet_files(run, port, policy)
         record = Run(
             run=run.name,
             rpc_port=port,
@@ -235,6 +242,7 @@ class Runtime:
             core_sha256=self.settings.core.sha256,
             lianad_sha256=self.settings.lianad.sha256,
             gui_language=self.settings.language,
+            policy=policy,
         )
         self.save(record)
         started = time.monotonic()
@@ -278,7 +286,13 @@ class Runtime:
                         raise SafetyError("Timed out starting the regtest backend.") from error
                     time.sleep(0.1)
             address = self.mining_address(run)
-            self.core_rpc(run, port, "generatetoaddress", [1, address])
+            height = 101 if policy else 1
+            self.core_rpc(run, port, "generatetoaddress", [height, address])
+            if policy:
+                write_json(
+                    run / "private/wallet-state.json",
+                    {"height": height, "revision": 0, "coins": {}, "reserve": None},
+                )
             self.spawn(
                 [str(daemon), "--conf", str(run / "liana/regtest/daemon.toml")], run, "lianad.log"
             )
@@ -290,7 +304,7 @@ class Runtime:
                     info = self.liana_rpc(run, "getinfo")
                     if info.get("network") != "regtest":
                         raise SafetyError("Unexpected wallet network.")
-                    if info.get("block_height", 0) >= 1:
+                    if info.get("block_height", 0) >= height:
                         break
                 except (OSError, SafetyError):
                     pass
@@ -315,10 +329,11 @@ class Runtime:
                         child.wait(timeout=5)
             raise
 
-    def wallet_files(self, run: Path, port: int) -> str:
+    def wallet_files(self, run: Path, port: int, policy: WalletPolicy | None = None) -> str:
         (run / "bitcoin").mkdir(mode=0o700)
         private = private_directory(run / "private", create=True)
-        seeds = [secrets.token_bytes(32) for _ in range(5)]
+        rule = policy or WORKSHOP_POLICY
+        seeds = [secrets.token_bytes(32) for _ in range(rule.primary_keys)]
         roots = [bip32.HDKey.from_seed(seed, version=NETWORKS["test"]["xprv"]) for seed in seeds]
         accounts = [key.derive("m/48h/1h/0h/2h") for key in roots]
         keys = [
@@ -329,9 +344,10 @@ class Runtime:
             + "/<0;1>/*"
             for key, account in zip(roots, accounts, strict=True)
         ]
-        recovery = keys[2].replace("/<0;1>/*", "/<2;3>/*")
+        recovery = keys[rule.recovery_signer - 1].replace("/<0;1>/*", "/<2;3>/*")
         descriptor = add_checksum(
-            "wsh(or_d(multi(3," + ",".join(keys) + "),and_v(v:pkh(" + recovery + "),older(6))))"
+            f"wsh(or_d(multi({rule.primary_signatures},{','.join(keys)}),"
+            f"and_v(v:pkh({recovery}),older({rule.recovery_blocks}))))"
         )
         write_json(private / "demo-signers.json", {"seed_hex": [x.hex() for x in seeds]})
         wallet = private_directory(run / "liana", create=True)
@@ -347,13 +363,19 @@ class Runtime:
         with (network / "gui.toml").open("x") as stream:
             os.fchmod(stream.fileno(), 0o600)
             stream.write('start_internal_bitcoind = false\nlog_level = "info"\n')
+        threshold = f"{rule.primary_signatures} of {rule.primary_keys}"
+        names = (
+            [f"Test signer {index + 1}" for index in range(rule.primary_keys)]
+            if policy
+            else ["Alice", "Bob", "Carol", "Dave", "Eve"]
+        )
         write_json(
             network / "settings.json",
             {
                 "wallets": [
                     {
-                        "name": "Experimental Liana · 3 of 5",
-                        "alias": "Workshop · 3 of 5",
+                        "name": f"Experimental Liana · {threshold}",
+                        "alias": f"{'Regtest' if policy else 'Workshop'} · {threshold}",
                         "descriptor_checksum": descriptor.split("#")[1],
                         "pinned_at": None,
                         "keys": [
@@ -362,9 +384,7 @@ class Runtime:
                                 "master_fingerprint": key.my_fingerprint.hex(),
                                 "provider_key": None,
                             }
-                            for name, key in zip(
-                                ["Alice", "Bob", "Carol", "Dave", "Eve"], roots, strict=True
-                            )
+                            for name, key in zip(names, roots, strict=True)
                         ],
                         "hardware_wallets": [],
                         "remote_backend_auth": None,

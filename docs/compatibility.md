@@ -9,9 +9,13 @@
 | Python | 3.12 or newer |
 | Native backend | Bitcoin Core 31.1, isolated regtest |
 | Wallet version gate | Liana `16.0` final only |
-| Experiment policy | P2WSH, 3 of 5, Carol on a separate derivation after 6 blocks |
+| Wallet policies | P2WSH, 2–8 primary keys, a user-selected threshold, and one recovery signer after 1–144 blocks |
 
-The current native integration was exercised on macOS ARM64 with `lianad` 16.0 final and Bitcoin Core 31.1. It uses current-protocol stdio throughout and restarts the server process between stages 2 and 3. The v16.0 API was also checked against upstream documentation/source. This is not a Linux, Windows, Taproot, hardware-wallet or physical-offline certification. Windows is not supported by this Unix-socket implementation.
+The native integration suite uses `lianad` 16.0 final and Bitcoin Core 31.1, and covers both the workshop workflow and independent actions on a configurable wallet. Windows is outside the Unix-socket implementation.
+
+## If discovery fails in your client
+
+Check that the client launches the configured executable with local stdio and includes `2026-07-28` metadata in its MCP requests. If it sends `initialize` or uses an older protocol, update the client's MCP SDK and the code that creates its stdio connection to use the current stateless client. Then test `tools/list` and `regtest_wallet_status` before enabling writes. For LU 3.0.9 the relevant client file is [`src/api/mcp/external-client.ts`](https://github.com/PurpleDoubleD/locally-uncensored/blob/v3.0.9/src/api/mcp/external-client.ts). For a separate local profile, see the [Hermes configuration](agent-setup.md). Keep the protocol gate and approval checks in the server.
 
 ## Liana feature boundaries
 
@@ -21,12 +25,12 @@ The current native integration was exercised on macOS ARM64 with `lianad` 16.0 f
 | `listtransactions`, `getlabels` | Readback of the known experiment's transactions and labels |
 | `updatelabels` | Fixed experiment labels only; no arbitrary user input |
 | Wallet setup | Fresh local test config and synthetic signers; no import of existing wallets |
-| Receive, renew, recovery | Fixed real regtest transactions constructed and signed outside the model |
-| General address or coin browsing | Not exposed |
+| Receive, renew, recovery | Configurable, independently approved deposits, blocks and single-output spends constructed and signed outside the model |
+| Coin browsing | Own generated wallet outputs and their current recovery wait |
 | `createspend`, `createrecovery`, `updatespend`, `listspendtxs` | Not exposed as general PSBT operations |
 | `broadcastspend`, `delspendtx`, `rbfpsbt`, `checkrbf` | Not exposed |
 | Derivation-index updates, rescans and BIP329 export | Not exposed |
-| Taproot, arbitrary policies, hardware signers, encrypted backup import/export | Not implemented in this experiment |
+| Taproot, arbitrary descriptors, hardware signers, encrypted backup import/export | Not implemented in this experiment |
 | Liana Connect / Business, remote nodes and accounts | Not supported |
 | Mainnet, testnet, signet or real-funds signing | Refused / outside this project's current scope |
 

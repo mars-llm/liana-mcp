@@ -1,6 +1,6 @@
 # Copy outside tracked files, use mode 0600 and replace every placeholder.
 # Use a new absolute state directory, owned by you, mode 0700, without symlinks.
-# Keep its path short enough for the full Unix socket path (under 104 bytes).
+# The absolute state path may use up to 40 bytes, leaving room for the Unix socket.
 state_directory = "/absolute/private/lmcp"
 enable_regtest_mutations = false
 # Once mutations are enabled, approve each new action from the local CLI.

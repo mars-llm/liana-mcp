@@ -21,6 +21,14 @@ from .errors import SafetyError
 from .runtime import Runtime
 from .scenario import advance
 from .verification import recovery_payment, verify
+from .wallet import (
+    WalletAction,
+    WalletRun,
+    WalletSetup,
+    WalletStatus,
+    configure_wallet,
+    wallet_status,
+)
 
 RunId = Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
 Step = Annotated[int, Field(strict=True, ge=1, le=4)]
@@ -38,9 +46,9 @@ class Status(Report):
     mutations_enabled: bool
     run_id: RunId | None = None
     completed_step: int = Field(default=0, ge=0, le=4)
-    primary_signatures: Literal[3] = 3
-    primary_keys: Literal[5] = 5
-    recovery_blocks: Literal[6] = 6
+    primary_signatures: int = Field(default=3, ge=1, le=8)
+    primary_keys: int = Field(default=5, ge=2, le=8)
+    recovery_blocks: int = Field(default=6, ge=1, le=144)
     peer_connections: Literal[0] | None = None
     liana_version: str | None = None
     setup_seconds: float | None = None
@@ -207,6 +215,8 @@ def create_server(runtime: Runtime) -> MCPServer:
         """Compare four confirmed transactions from Liana and Core and verify fees from the block data."""
 
         def action():
+            if runtime.guard(run_id)[0].policy is not None:
+                raise SafetyError("Use wallet status for a configurable regtest run.")
             result = verify(runtime, run_id)
             return Verification(
                 run_id=run_id,
@@ -226,9 +236,14 @@ def create_server(runtime: Runtime) -> MCPServer:
 
         return await execute(action)
 
+    async def regtest_wallet_status() -> WalletStatus:
+        """Read a configurable regtest wallet's policy, revision, coins and most recent receipt."""
+        return await execute(lambda: wallet_status(runtime))
+
     tools = [
         register(liana_demo_status, read_only=True, idempotent=True, destructive=False),
         register(verify_liana_demo, read_only=True, idempotent=True, destructive=False),
+        register(regtest_wallet_status, read_only=True, idempotent=True, destructive=False),
     ]
 
     if runtime.settings.enable_regtest_mutations:
@@ -263,6 +278,8 @@ def create_server(runtime: Runtime) -> MCPServer:
 
             def action():
                 record, run, _ = runtime.guard(run_id)
+                if record.policy is not None:
+                    raise SafetyError("Use wallet actions for a configurable regtest run.")
                 flow_path = run / "private/presentation-flow.json"
                 completed = (
                     json.loads(private_file(flow_path))["completed"] if flow_path.exists() else 0
@@ -286,6 +303,32 @@ def create_server(runtime: Runtime) -> MCPServer:
         tools += [
             register(setup_liana_demo, read_only=False, idempotent=True, destructive=False),
             register(next_liana_demo_step, read_only=False, idempotent=True, destructive=True),
+        ]
+
+    if runtime.settings.enable_regtest_mutations and runtime.settings.require_operator_approval:
+
+        async def setup_regtest_wallet(request: WalletSetup) -> WalletStatus:
+            """Start a fresh generated wallet with the specified policy on isolated regtest.
+
+            Requires local approval of this exact request. Opens the configured optional GUI.
+            A retry with the same running policy returns status. Keys never enter this tool.
+            """
+            return await execute(lambda: configure_wallet(runtime, request), mutate=True)
+
+        async def regtest_wallet_action(request: WalletAction) -> WalletStatus:
+            """Approve and perform one deposit, block-production or single-coin spending action.
+
+            The human approves the exact request locally first. Use the current run ID and revision.
+            Primary spends use explicitly selected signers. Recovery spends use the configured
+            recovery signer after the coin matures. Destinations are this wallet or a local test sink.
+            """
+            return await execute(
+                lambda: WalletRun(runtime, request.run_id).execute(request), mutate=True
+            )
+
+        tools += [
+            register(setup_regtest_wallet, read_only=False, idempotent=True, destructive=False),
+            register(regtest_wallet_action, read_only=False, idempotent=True, destructive=True),
         ]
 
     # The SDK handles protocol messages; the gate refuses initialization-era connections.

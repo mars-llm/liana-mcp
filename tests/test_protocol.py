@@ -12,7 +12,11 @@ async def test_sdk_protocol_and_default_tools(settings):
     server = create_server(Runtime(settings))
     async with Client(server, mode="2026-07-28") as client:
         tools = await client.list_tools()
-        assert [t.name for t in tools.tools] == ["liana_demo_status", "verify_liana_demo"]
+        assert [t.name for t in tools.tools] == [
+            "liana_demo_status",
+            "verify_liana_demo",
+            "regtest_wallet_status",
+        ]
         for tool in tools.tools:
             assert tool.annotations.read_only_hint is True
             assert tool.annotations.open_world_hint is False
@@ -31,7 +35,7 @@ async def test_mutation_advertisement_requires_operator_setting(settings):
     settings.enable_regtest_mutations = True
     async with Client(create_server(Runtime(settings))) as client:
         tools = (await client.list_tools()).tools
-        assert len(tools) == 4
+        assert len(tools) == 5
         assert tools[-1].name == "next_liana_demo_step"
         assert tools[-1].annotations.destructive_hint is True
         assert tools[-1].annotations.idempotent_hint is True

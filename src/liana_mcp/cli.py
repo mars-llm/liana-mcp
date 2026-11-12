@@ -6,11 +6,14 @@ import os
 import sys
 from pathlib import Path
 
+from pydantic import TypeAdapter
+
 from .approval import APPROVAL_SECONDS, approve
 from .config import Settings
 from .errors import SafetyError
 from .runtime import Runtime
 from .server import create_server
+from .wallet import WalletRequest, WalletSetup
 
 
 def main() -> int:
@@ -22,6 +25,11 @@ def main() -> int:
         "--approve-step",
         choices=["setup", "1", "2", "3", "4"],
         help="Authorize one mutation in the current isolated regtest",
+    )
+    action.add_argument(
+        "--approve-wallet-request",
+        metavar="JSON",
+        help="Authorize exactly one configurable wallet setup or action, using its request JSON",
     )
     args = parser.parse_args()
     os.umask(0o077)
@@ -35,10 +43,18 @@ def main() -> int:
             with runtime.operation(mutate=True):
                 approve(runtime, args.approve_step)
             print(json.dumps({"approved_step": args.approve_step, "expires_in": APPROVAL_SECONDS}))
+        elif args.approve_wallet_request:
+            if len(args.approve_wallet_request) > 16384:
+                raise SafetyError("Wallet request is too large.")
+            request = TypeAdapter(WalletRequest).validate_json(args.approve_wallet_request)
+            action_name = "wallet_setup" if isinstance(request, WalletSetup) else "wallet_action"
+            with runtime.operation(mutate=True):
+                approve(runtime, action_name, request.model_dump(mode="json"))
+            print(json.dumps({"approved_action": action_name, "expires_in": APPROVAL_SECONDS}))
         else:
             create_server(runtime).run(transport="stdio")
         return 0
-    except (SafetyError, OSError):
+    except (SafetyError, OSError, ValueError):
         # Startup failures go to stderr, never corrupting the MCP stdout stream.
         print(
             "Liana MCP refused the operation. Check the private local configuration and regtest status.",

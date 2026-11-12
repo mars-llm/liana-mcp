@@ -1,8 +1,8 @@
 # Liana MCP with Hermes Agent
 
-This exercise uses an isolated Bitcoin regtest wallet. Use a separate local Hermes profile and a model served on your computer.
+Hermes is one option for connecting a local model. Use a separate local Hermes profile and a model served on your computer.
 
-1. Follow [Install locally](../README.md#install-locally) and prepare the private operator config. Keep `enable_regtest_mutations = false` for the first status check.
+1. Use the [README setup prompt](../README.md#install-locally) to prepare the private operator config. For the configurable tools, enable both mutation consent and independent operator approval.
 2. Select a local model with tool calling. Use a Hermes runtime with MCP SDK 2.3.0 and stateless discovery. Hermes may require an actual context window of at least 64,000 tokens, depending on the local provider. Configure the model endpoint on loopback and apply your local network restrictions.
 3. Add the following entry to the Hermes profile's `config.yaml`. Replace both paths with absolute paths. Enable only the `mcp-liana` toolset for this exercise.
 
@@ -14,7 +14,7 @@ mcp_servers:
     protocol: stateless
     trust: untrusted
     tools:
-      include: [liana_demo_status, setup_liana_demo, next_liana_demo_step, verify_liana_demo]
+      include: [regtest_wallet_status, setup_regtest_wallet, regtest_wallet_action]
       prompts: false
       resources: false
     sampling:
@@ -22,6 +22,8 @@ mcp_servers:
     elicitation:
       enabled: false
 ```
+
+For a configurable wallet, continue with the README prompt and [wallet actions](wallet-tools.md). To run the workshop exercise below, change the include list to `[liana_demo_status, setup_liana_demo, next_liana_demo_step, verify_liana_demo]` and use a fresh namespace.
 
 ## English prompts
 

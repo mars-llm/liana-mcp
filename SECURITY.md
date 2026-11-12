@@ -7,8 +7,8 @@ This is an experimental regtest service for local tests, education and developme
 - **Current MCP only:** revision `2026-07-28` is required. Initialization-era requests and older revisions are rejected before tool execution. No fallback mode is exposed.
 
 - **Local stdio only:** no MCP HTTP listener, OAuth, remote endpoint, arbitrary URL, proxy forwarding or runtime executable download.
-- **Read-only by default:** mutation tools exist only when the operator enables the fixed regtest experiment in a private config. MCP arguments cannot change this setting.
-- **Independent operator approval:** when enabled, each new mutation requires an expiring, single-use permit created by the local CLI. The permit is bound to the current run and checkpoint. This mode assumes the host cannot run the operator CLI or write to the private state directory.
+- **Read-only by default:** the operator enables regtest mutations in a private config. Configurable wallet mutations also require independent operator approval.
+- **Independent operator approval:** each configurable mutation requires an expiring, single-use permit created by the local CLI. The permit binds the exact request to the current run and checkpoint. This mode assumes the wallet session cannot run the operator CLI or write to the private state directory.
 - **Separate state:** fresh directories only, private file permissions, random run IDs, symlink refusal, pinned executables and no connection to existing wallets.
 - **Checks on every live call:** regtest network, zero peers, expected chain state and the actual wallet descriptor. Unknown Liana versions are refused.
 - **Small input surface:** declared schemas, rejected extra arguments, structured output schemas, bounded arguments, a per-process call limit and a cross-process lock. There is no raw RPC passthrough or shell tool.
@@ -23,7 +23,7 @@ The design protects against unexpected model arguments, accidental use of anothe
 
 The Python process is not an OS sandbox. A host-level sandbox should restrict it to its config, pinned runtimes, private state, loopback RPC and owned Unix sockets. The project does not require a VM. No network-disconnection claim follows merely from selecting a local model or reaching zero Bitcoin peers.
 
-The test wallet stores all five disposable keys locally. Do not fund its addresses outside regtest or reuse its keys. The state directory contains secrets and wallet history even though MCP results omit them. Never commit or upload it. The server deliberately provides no deletion tool.
+The test wallet stores all disposable keys locally. Use those keys and addresses only on the isolated chain. The state directory contains secrets and wallet history even though MCP results omit them. Keep it private and outside Git.
 
 Cancellation cannot undo a broadcast transaction. A running step finishes its bounded checkpoint; inspect status before retrying. Closing stdio leaves the backend available for reconnection. Use the local CLI to stop it. Incomplete setup and unexpected chain changes require local inspection rather than automatic reset or repair.
 
