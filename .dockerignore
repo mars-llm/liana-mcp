@@ -1,6 +1,8 @@
 **
 !Dockerfile
 !LICENSE
+!licenses
+!licenses/**
 !pyproject.toml
 !uv.lock
 !src

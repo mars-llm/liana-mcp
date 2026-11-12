@@ -28,6 +28,8 @@ FROM docker.io/library/python:3.12-slim-bookworm
 COPY --from=build /release-bin/ /usr/local/bin/
 COPY --from=build /opt/venv /opt/venv
 COPY LICENSE /usr/share/doc/liana-mcp/LICENSE
+COPY licenses/bitcoin-core-32.1.txt /usr/share/doc/bitcoin-core/COPYING
+COPY src/liana_mcp/upstream/liana-16.0/LICENCE /usr/share/doc/liana/LICENCE
 
 RUN groupadd --gid 10001 liana-mcp \
     && useradd --uid 10001 --gid 10001 --no-create-home liana-mcp \
